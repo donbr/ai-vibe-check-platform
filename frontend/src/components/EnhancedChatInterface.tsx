@@ -137,10 +137,10 @@ const CHAIN_OF_THOUGHT_PROMPTS = [
 ]
 
 const MODELS = [
-  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Fast and cost-effective' },
-  { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano', description: 'Latest nano model' },
-  { id: 'gpt-4', name: 'GPT-4', description: 'Most capable model' },
-  { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', description: 'Balance of speed and capability' }
+  { id: 'gpt-5-nano', name: 'GPT-5 Nano', description: 'Latest nano model - fast and efficient' },
+  { id: 'gpt-5-mini', name: 'GPT-5 Mini', description: 'Latest mini model - balanced performance' },
+  { id: 'gpt-5', name: 'GPT-5', description: 'Most capable GPT-5 model' },
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Fast and cost-effective' }
 ]
 
 export default function EnhancedChatInterface() {
@@ -148,7 +148,7 @@ export default function EnhancedChatInterface() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [apiKey, setApiKey] = useState('')
-  const [selectedModel, setSelectedModel] = useState('gpt-4o-mini')
+  const [selectedModel, setSelectedModel] = useState('gpt-5-nano')
   const [systemPrompt, setSystemPrompt] = useState('You are a helpful AI assistant.')
   const [isStreaming, setIsStreaming] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')

@@ -65,7 +65,7 @@ def sanitize_content(content: str) -> str:
 class ChatRequest(BaseModel):
     developer_message: str  # Message from the developer/system
     user_message: str      # Message from the user
-    model: Optional[str] = "gpt-4.1-mini"  # Optional model selection with default
+    model: Optional[str] = "gpt-5-nano"  # Optional model selection with default
     api_key: str          # OpenAI API key for authentication
 
 # Define the main chat endpoint that handles POST requests
@@ -77,7 +77,22 @@ async def chat(request: ChatRequest):
         user_message = sanitize_content(request.user_message)
         
         # Initialize OpenAI client with the provided API key
-        client = OpenAI(api_key=request.api_key)
+        # Use environment variable if available, otherwise use provided key
+        api_key = request.api_key or os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            raise HTTPException(status_code=400, detail="No API key provided")
+        
+        try:
+            client = OpenAI(
+                api_key=api_key,
+                timeout=30.0
+            )
+        except TypeError as e:
+            # Fallback for compatibility issues
+            print(f"OpenAI client init error: {e}")
+            import openai as openai_module
+            openai_module.api_key = api_key
+            client = openai_module
         
         # Create an async generator function for streaming responses
         async def generate():
@@ -114,6 +129,10 @@ async def chat(request: ChatRequest):
     except Exception as e:
         # Handle any other errors that occur during processing
         error_msg = str(e)
+        print(f"Error in /api/chat: {error_msg}")  # Debug logging
+        import traceback
+        traceback.print_exc()  # Print full stack trace
+        
         # Check if the error is related to encoding issues
         if "ascii" in error_msg.lower() and "encode" in error_msg.lower():
             raise HTTPException(

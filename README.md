@@ -87,8 +87,8 @@ The AI Vibe Check Platform provides a sophisticated testing environment for eval
 2. **Backend Setup**
    ```bash
    # Install Python dependencies
-   pip install -r requirements.txt
-   
+   uv sync
+
    # Start FastAPI server
    python api/app.py
    ```
