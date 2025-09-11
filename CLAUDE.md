@@ -14,8 +14,15 @@ This is an AI Vibe Check Platform - a comprehensive AI evaluation platform with 
 
 - **Frontend** (`/frontend/`): Next.js 15 application with React 19
   - Main component: `src/components/EnhancedChatInterface.tsx` (multi-tab interface)
-  - Features: Chat, System Prompt Templates, Activity #1 Testing, Analysis tabs
+  - Features: Chat, System Prompt Templates, Advanced Prompts, Activity #1 Testing, Analysis tabs
   - Uses Tailwind CSS v4 for styling, TypeScript configuration with ESLint
+  - Advanced prompt management system with template library and variable substitution
+
+- **Prompt System**: Sophisticated prompt management infrastructure
+  - Template library in `/prompts/templates/` with `.prompty` files
+  - Advanced variable substitution system via `promptManager` and `templateEngine`
+  - Security validation and model configuration per template
+  - Categories: educational, creative, analytical, professional
 
 - **Testing Framework**: Built-in "vibe checking" evaluation system
   - 5 standardized test cases (`ACTIVITY_1_TESTS`) targeting different AI capabilities
@@ -46,7 +53,15 @@ npm install    # Install dependencies
 npm run dev    # Start Next.js dev server on localhost:3000
 npm run build  # Build for production
 npm run start  # Start production server
-npm run lint   # Run ESLint
+npm run lint   # Run ESLint for code quality checks
+```
+
+### Testing & Quality
+```bash
+# Frontend linting (required before commits)
+cd frontend && npm run lint
+
+# No backend testing commands defined - manual testing via /api/health endpoint
 ```
 
 ### Full Stack Deployment
@@ -66,28 +81,75 @@ vercel                 # Deploy entire application to Vercel
 - Use Next.js for frontend (optimized for Vercel deployment)
 - Provide local testing instructions for UI components
 
-## Key Features & Components
+## Architecture Deep Dive
 
-- **Multi-Tab Interface**: `EnhancedChatInterface.tsx` provides Chat, Templates, Testing, and Analysis tabs
-- **Standardized Testing**: 5 test cases in `ACTIVITY_1_TESTS` covering educational, creative, analytical, and professional capabilities
-- **System Prompt Templates**: Pre-built templates for Expert Teacher, Creative Writer, Analytical Thinker, Professional Communicator, and Chain-of-Thought reasoning
-- **Real-time Analysis**: Word count tracking, response quality assessment, and performance metrics
+### Frontend State Management
+- Complex multi-tab state managed in `EnhancedChatInterface.tsx`
+- Dual prompt systems: legacy templates + advanced prompt library
+- Real-time streaming message handling with React state
+- Template variable management and validation
+
+### Advanced Prompt System
+- **Template Structure**: YAML-frontmatter + content in `.prompty` files
+- **Processing Pipeline**: `templateLoader` → `promptManager` → `templateEngine`
+- **Features**: Variable substitution, security validation, model preferences
+- **Integration**: Seamless fallback from advanced templates to legacy system
+
+### API Architecture
+- **Streaming**: Uses OpenAI's streaming API with AsyncGenerator pattern
+- **CORS**: Configured for cross-origin requests (development + production)
+- **Request Flow**: Frontend → FastAPI → OpenAI → Streaming response
+- **Role Mapping**: `developer_message` becomes "developer" role in OpenAI API
+
+## Key Components & Files
+
+### Core Frontend Components
+- `EnhancedChatInterface.tsx`: Main application with 5-tab interface
+- `PromptLibrary.tsx`: Advanced template browser and selection
+- `PromptVariableEditor.tsx`: Dynamic form for template variables
+- `PromptPreview.tsx`: Template processing and preview with testing
+
+### Backend Core
+- `api/app.py`: FastAPI application with streaming chat endpoint
+- Pydantic models for request validation (`ChatRequest`)
+- OpenAI client initialization per request (API key from frontend)
+
+### Prompt Management
+- `frontend/src/types/prompt.ts`: TypeScript interfaces for prompt system
+- `frontend/src/utils/promptManager.ts`: Template processing orchestrator
+- `frontend/src/utils/templateEngine.ts`: Variable substitution engine
+- `frontend/src/utils/templateLoader.ts`: Async template loading from `/prompts/`
+
+### Testing Infrastructure
+- `ACTIVITY_1_TESTS`: Hardcoded test cases in `EnhancedChatInterface.tsx`
+- Each test targets specific AI capabilities (educational, creative, analytical, etc.)
+- Results stored in component state with analysis tab for metrics
 
 ## Project Structure
 
-- Root: Python project with pyproject.toml (Python ≥3.13) + uv.lock for reproducible dependency management
-- `api/app.py`: FastAPI backend with CORS enabled, streaming responses
-- `frontend/src/components/`: React components including main EnhancedChatInterface
-- `vercel.json`: Deployment configuration for full-stack Vercel deployment
-- `.cursor/rules/`: Contains development rules for AI-assisted coding
-- Legacy `requirements.txt` files: Maintained for compatibility, but uv + pyproject.toml is primary
+- **Root**: Python project with pyproject.toml (Python ≥3.13) + uv.lock
+- **API**: FastAPI backend in `/api/` with CORS and streaming support
+- **Frontend**: Next.js app in `/frontend/` with TypeScript and Tailwind CSS v4
+- **Prompts**: Template library in `/prompts/templates/` organized by category
+- **Config**: Vercel deployment config, Cursor rules, ESLint configuration
 
 ## API Integration
 
-The frontend integrates with the FastAPI backend through the `/api/chat` endpoint, sending:
-- `developer_message`: System/developer prompts
-- `user_message`: User input
-- `api_key`: OpenAI API key (handled securely)
-- `model`: Optional model selection
+The frontend integrates with the FastAPI backend through `/api/chat` endpoint:
 
-Responses are streamed in real-time from OpenAI through the FastAPI backend.
+**Request Format:**
+```json
+{
+  "developer_message": "System/developer prompt",
+  "user_message": "User input",
+  "api_key": "OpenAI API key",
+  "model": "gpt-4o-mini" // Optional, defaults to gpt-4.1-mini
+}
+```
+
+**Response**: Streaming text chunks via Server-Sent Events pattern
+
+**Key Integration Points:**
+- API key passed from frontend (no server-side storage)
+- Model selection controlled by frontend with template overrides
+- Streaming handled via ReadableStream API in browser

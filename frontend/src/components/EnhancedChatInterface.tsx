@@ -1,6 +1,12 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { PromptTemplate, ProcessedPrompt } from '../types/prompt'
+import { templateLoader } from '../utils/templateLoader'
+import { promptManager } from '../utils/promptManager'
+import PromptLibrary from './PromptLibrary'
+import PromptVariableEditor from './PromptVariableEditor'
+import PromptPreview from './PromptPreview'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -43,7 +49,7 @@ const ACTIVITY_1_TESTS: TestCase[] = [
   {
     id: 'creative-writing',
     name: 'Creative Writing',
-    question: 'Write a short, imaginative story (100–150 words) about a robot finding friendship in an unexpected place.',
+    question: 'Write a short, imaginative story (100-150 words) about a robot finding friendship in an unexpected place.',
     aspectTested: 'Creative Writing, Narrative Construction, Word Count Control',
     systemPrompt: 'You are a creative writer who crafts engaging, imaginative stories with precise word count control.'
   },
@@ -138,7 +144,7 @@ const MODELS = [
 ]
 
 export default function EnhancedChatInterface() {
-  const [activeTab, setActiveTab] = useState<'chat' | 'templates' | 'testing' | 'analysis'>('chat')
+  const [activeTab, setActiveTab] = useState<'chat' | 'templates' | 'advanced-prompts' | 'testing' | 'analysis'>('chat')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [apiKey, setApiKey] = useState('')
@@ -151,6 +157,12 @@ export default function EnhancedChatInterface() {
   const [enableChainOfThought, setEnableChainOfThought] = useState(false)
   const [selectedCoTPrompt, setSelectedCoTPrompt] = useState(CHAIN_OF_THOUGHT_PROMPTS[0])
   
+  // New prompt management state
+  const [selectedAdvancedTemplate, setSelectedAdvancedTemplate] = useState<PromptTemplate | null>(null)
+  const [templateVariables, setTemplateVariables] = useState<Record<string, any>>({})
+  const [templateLibraryLoaded, setTemplateLibraryLoaded] = useState(false)
+  const [advancedPromptSubTab, setAdvancedPromptSubTab] = useState<'library' | 'variables' | 'preview'>('library')
+  
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -161,6 +173,19 @@ export default function EnhancedChatInterface() {
     scrollToBottom()
   }, [messages])
 
+  // Load templates on component mount
+  useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        await templateLoader.loadTemplates()
+        setTemplateLibraryLoaded(true)
+      } catch (error) {
+        console.error('Failed to load template library:', error)
+      }
+    }
+    loadTemplates()
+  }, [])
+
   const sendMessage = async (customMessage?: string, customSystemPrompt?: string, testCaseId?: string) => {
     let messageToSend = customMessage || input.trim()
     if (!messageToSend || !apiKey || isStreaming) return
@@ -170,7 +195,27 @@ export default function EnhancedChatInterface() {
       messageToSend += `\n\n${selectedCoTPrompt}`
     }
 
-    const effectiveSystemPrompt = customSystemPrompt || systemPrompt
+    // Use advanced template if selected, otherwise fall back to legacy system
+    let effectiveSystemPrompt = customSystemPrompt || systemPrompt
+    if (selectedAdvancedTemplate && !customSystemPrompt) {
+      try {
+        const processedPrompt = promptManager.processTemplate(selectedAdvancedTemplate, templateVariables)
+        if (processedPrompt.missing_variables.length === 0 && processedPrompt.security_violations.length === 0) {
+          effectiveSystemPrompt = processedPrompt.content
+          // Update model settings if specified in template
+          if (processedPrompt.model_config.preferred && processedPrompt.model_config.preferred !== selectedModel) {
+            setSelectedModel(processedPrompt.model_config.preferred)
+          }
+        } else {
+          console.warn('Advanced template has issues, falling back to basic prompt:', {
+            missing: processedPrompt.missing_variables,
+            violations: processedPrompt.security_violations
+          })
+        }
+      } catch (error) {
+        console.error('Error processing advanced template:', error)
+      }
+    }
     
     if (!customMessage) setInput('')
     
@@ -290,6 +335,21 @@ export default function EnhancedChatInterface() {
     setFewShotExamples(prev => prev.filter((_, i) => i !== index))
   }
 
+  // Advanced prompt handlers
+  const handleSelectAdvancedTemplate = (template: PromptTemplate) => {
+    setSelectedAdvancedTemplate(template)
+    setTemplateVariables(template.sample || {})
+    setAdvancedPromptSubTab('variables')
+  }
+
+  const handleTestAdvancedPrompt = (processedPrompt: ProcessedPrompt) => {
+    // Switch to chat tab and use the processed prompt
+    setSystemPrompt(processedPrompt.content)
+    setActiveTab('chat')
+    // Clear any legacy template selection
+    setSelectedTemplate('')
+  }
+
   const TabButton = ({ label, isActive, onClick }: {
     label: string
     isActive: boolean
@@ -313,6 +373,7 @@ export default function EnhancedChatInterface() {
       <div className="flex space-x-1 p-4 border-b border-gray-200 dark:border-gray-700">
         <TabButton label="Chat" isActive={activeTab === 'chat'} onClick={() => setActiveTab('chat')} />
         <TabButton label="Templates" isActive={activeTab === 'templates'} onClick={() => setActiveTab('templates')} />
+        <TabButton label="Advanced Prompts" isActive={activeTab === 'advanced-prompts'} onClick={() => setActiveTab('advanced-prompts')} />
         <TabButton label="Activity #1 Testing" isActive={activeTab === 'testing'} onClick={() => setActiveTab('testing')} />
         <TabButton label="Analysis" isActive={activeTab === 'analysis'} onClick={() => setActiveTab('analysis')} />
       </div>
@@ -571,6 +632,90 @@ export default function EnhancedChatInterface() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'advanced-prompts' && (
+          <div className="space-y-6">
+            {!templateLibraryLoaded ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <span className="ml-2 text-gray-600">Loading advanced prompt library...</span>
+              </div>
+            ) : (
+              <>
+                {/* Sub-tab navigation for advanced prompts */}
+                <div className="flex space-x-1 border-b border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={() => setAdvancedPromptSubTab('library')}
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                      advancedPromptSubTab === 'library'
+                        ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-500'
+                        : 'text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    Template Library
+                  </button>
+                  <button
+                    onClick={() => setAdvancedPromptSubTab('variables')}
+                    disabled={!selectedAdvancedTemplate}
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                      advancedPromptSubTab === 'variables'
+                        ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-500'
+                        : selectedAdvancedTemplate
+                        ? 'text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
+                        : 'text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    Configure Variables
+                    {selectedAdvancedTemplate && (
+                      <span className="ml-1 px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full">
+                        {selectedAdvancedTemplate.variables.length}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setAdvancedPromptSubTab('preview')}
+                    disabled={!selectedAdvancedTemplate}
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                      advancedPromptSubTab === 'preview'
+                        ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-500'
+                        : selectedAdvancedTemplate
+                        ? 'text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
+                        : 'text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    Preview & Test
+                  </button>
+                </div>
+
+                {/* Sub-tab content */}
+                {advancedPromptSubTab === 'library' && (
+                  <PromptLibrary
+                    onSelectTemplate={handleSelectAdvancedTemplate}
+                    selectedTemplateId={selectedAdvancedTemplate ? `${selectedAdvancedTemplate.name}-${selectedAdvancedTemplate.version}` : undefined}
+                    showActions={true}
+                  />
+                )}
+
+                {advancedPromptSubTab === 'variables' && (
+                  <PromptVariableEditor
+                    template={selectedAdvancedTemplate}
+                    variables={templateVariables}
+                    onVariablesChange={setTemplateVariables}
+                  />
+                )}
+
+                {advancedPromptSubTab === 'preview' && (
+                  <PromptPreview
+                    template={selectedAdvancedTemplate}
+                    variables={templateVariables}
+                    onTest={handleTestAdvancedPrompt}
+                    showTestButton={true}
+                  />
+                )}
+              </>
+            )}
           </div>
         )}
 
