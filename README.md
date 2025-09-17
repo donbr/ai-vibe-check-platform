@@ -3,17 +3,19 @@
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/donbr/ai-vibe-check-platform)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A comprehensive AI evaluation platform featuring advanced prompt engineering techniques and systematic "vibe checking" for LLM-powered applications.
+A comprehensive AI evaluation platform featuring Model Context Protocol (MCP) integration, advanced prompt engineering techniques, and systematic "vibe checking" for LLM-powered applications.
 
 ## 🌟 Overview
 
-The AI Vibe Check Platform provides a sophisticated testing environment for evaluating Large Language Model performance across multiple dimensions. Built with modern web technologies, it combines systematic evaluation with advanced prompt engineering techniques to help developers understand and improve their AI applications.
+The AI Vibe Check Platform provides a sophisticated testing environment for evaluating Large Language Model performance across multiple dimensions. Built with modern web technologies and Model Context Protocol (MCP) standards, it combines systematic evaluation with advanced prompt engineering techniques to help developers understand and improve their AI applications.
 
 ### Key Value Propositions
+- **MCP-Native Architecture**: Full Model Context Protocol compliance with standard Inspector interface
 - **Systematic Evaluation**: Structured testing with 5 standardized vibe check questions
-- **Advanced Prompt Engineering**: Multiple system prompt templates and strategies  
+- **Advanced Prompt Engineering**: Multiple system prompt templates and strategies
 - **Real-time Analysis**: Immediate response evaluation with metrics and insights
 - **Developer-Friendly**: Full-stack solution with modern tooling and deployment
+- **Standard MCP Operations**: Tools, Resources, Prompts, and Server debugging capabilities
 
 ## ✨ Features
 
@@ -37,8 +39,10 @@ The AI Vibe Check Platform provides a sophisticated testing environment for eval
 - **Multi-Tab Workflow**:
   - **Chat**: Direct AI conversation
   - **Templates**: System prompt management
+  - **Advanced Prompts**: Prompt engineering with variables
   - **Testing**: Automated evaluation suite
   - **Analysis**: Response metrics and insights
+  - **MCP Inspector**: Standard MCP protocol debugging and tool testing
 
 ### 📊 Real-Time Analysis
 - Word count tracking and validation
@@ -46,35 +50,44 @@ The AI Vibe Check Platform provides a sophisticated testing environment for eval
 - Performance metrics visualization
 - Comparative analysis across different prompts
 
+### 🔧 MCP Inspector Features
+- **Tools Browser**: Discover and test available MCP tools with schema validation
+- **Resources Explorer**: Browse and inspect MCP resources with content preview
+- **Prompts Manager**: Access and execute MCP prompts with dynamic argument forms
+- **Server Information**: View MCP server capabilities and connection status
+- **Message History**: Real-time debugging with complete request/response tracking
+- **Interactive Testing**: Execute MCP operations with immediate feedback
+
 ## 🏗️ Architecture
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │                 │    │                 │    │                 │
-│   Next.js       │◄──►│   FastAPI       │◄──►│   OpenAI API    │
-│   Frontend      │    │   Backend       │    │                 │
+│   Next.js       │◄──►│   MCP Server    │◄──►│   OpenAI API    │
+│   Frontend      │    │   (Vercel)      │    │                 │
 │                 │    │                 │    │                 │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
         │                        │
         │                        │
         ▼                        ▼
 ┌─────────────────┐    ┌─────────────────┐
-│   React UI      │    │  Streaming      │
-│   Components    │    │  Responses      │
+│   MCP Inspector │    │  MCP Protocol   │
+│   React UI      │    │  Tools/Prompts  │
 └─────────────────┘    └─────────────────┘
 ```
 
-**Frontend**: Next.js 15.3.4 with React 19, TypeScript, and Tailwind CSS
-**Backend**: FastAPI with streaming responses and CORS support
-**AI Integration**: OpenAI API with multiple model support
-**Deployment**: Vercel-optimized with automatic builds
+**Frontend**: Next.js 15 with React 19, TypeScript, and Tailwind CSS v4
+**MCP Server**: Vercel MCP adapter with Next.js API routes supporting HTTP, SSE, and stdio transports
+**AI Integration**: OpenAI API with multiple model support via MCP tools
+**Legacy Backend**: FastAPI (deprecated, maintained for backwards compatibility)
+**Deployment**: Vercel-optimized with automatic builds and MCP server functions
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js 18+ and npm
-- Python 3.10+
 - OpenAI API key
+- Python 3.10+ (optional, for legacy backend compatibility)
 
 ### Local Development
 
@@ -84,30 +97,28 @@ The AI Vibe Check Platform provides a sophisticated testing environment for eval
    cd ai-vibe-check-platform
    ```
 
-2. **Backend Setup**
+2. **Frontend Setup (Primary)**
+   ```bash
+   # Navigate to frontend directory
+   cd frontend
+
+   # Install dependencies
+   npm install
+
+   # Start development server (includes MCP server)
+   npm run dev
+   ```
+   Application runs on http://localhost:3000 with integrated MCP server
+
+3. **Legacy Backend Setup (Optional)**
    ```bash
    # Install Python dependencies
    uv sync
 
-   # Start FastAPI server (use one of these commands)
-   cd api && uv run python app.py    # Recommended: uses uv
-   # OR
-   python3 api/app.py                # Alternative: direct python3
+   # Start FastAPI server (for legacy compatibility)
+   cd api && uv run python app.py
    ```
-   Backend runs on http://localhost:8000
-
-3. **Frontend Setup**
-   ```bash
-   # Navigate to frontend directory
-   cd frontend
-   
-   # Install dependencies
-   npm install
-   
-   # Start development server
-   npm run dev
-   ```
-   Frontend runs on http://localhost:3000
+   Legacy backend runs on http://localhost:8000
 
 4. **Configure API Key**
    - Open the application in your browser
@@ -118,11 +129,20 @@ The AI Vibe Check Platform provides a sophisticated testing environment for eval
 
 ### Running Vibe Check Evaluations
 
-1. **Navigate to Testing Tab**: Click "Activity #1 Testing"
+1. **Navigate to Testing Tab**: Click "Testing"
 2. **Select System Prompt**: Choose appropriate templates for different question types
 3. **Run Individual Tests**: Click "Run Test" for specific questions
 4. **Run Complete Suite**: Use "Run All Tests" for comprehensive evaluation
 5. **Analyze Results**: Switch to "Analysis" tab for detailed metrics
+
+### Using MCP Inspector
+
+1. **Navigate to MCP Inspector**: Click "MCP Inspector" tab
+2. **Browse Tools**: Explore available MCP tools with schema information
+3. **Test Tools**: Execute MCP tools with dynamic argument forms
+4. **Explore Resources**: Browse and inspect MCP resources
+5. **Debug Operations**: Use Message History tab for request/response debugging
+6. **Server Information**: View MCP server capabilities and connection status
 
 ### System Prompt Templates
 
@@ -139,10 +159,36 @@ The AI Vibe Check Platform provides a sophisticated testing environment for eval
 
 ## 📚 API Documentation
 
-### Endpoints
+### MCP Endpoints (Primary)
 
-#### `POST /api/chat`
-Streaming chat completion with OpenAI integration.
+#### `POST /api/mcp/http`
+Main MCP server endpoint supporting JSON-RPC 2.0 protocol.
+
+**Request Body:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list"
+}
+```
+
+**Available Methods:**
+- `tools/list`: List available MCP tools
+- `tools/call`: Execute MCP tools with arguments
+- `prompts/list`: List available MCP prompts
+- `prompts/get`: Get prompt content with arguments
+- `resources/list`: List available MCP resources
+- `resources/read`: Read resource content
+- `initialize`: Get server information
+
+#### `GET /api/mcp/sse`
+Server-Sent Events endpoint for real-time MCP communication.
+
+### Legacy Endpoints (Deprecated)
+
+#### `POST /api/legacy-chat`
+Backwards-compatible chat endpoint (routes to old FastAPI behavior).
 
 **Request Body:**
 ```json
@@ -155,16 +201,6 @@ Streaming chat completion with OpenAI integration.
 ```
 
 **Response:** Streaming text response
-
-#### `GET /api/health`
-Health check endpoint.
-
-**Response:**
-```json
-{
-  "status": "ok"
-}
-```
 
 ## 🚢 Deployment
 
@@ -191,30 +227,74 @@ Health check endpoint.
    - If `BACKEND_URL` is not set, PDF functionality will only work in local development
 
 ### Architecture Benefits
-- **Serverless Functions**: FastAPI backend runs as Vercel functions
+- **MCP-Native**: Standards-compliant Model Context Protocol implementation
+- **Serverless Functions**: MCP server runs as Vercel functions
 - **Edge Optimization**: Next.js frontend optimized for global CDN
 - **Automatic Scaling**: Handles traffic spikes seamlessly
 - **Zero Configuration**: Works out-of-the-box with provided `vercel.json`
+- **Multi-Transport**: Supports HTTP, SSE, and stdio MCP transports
 
 ## 🛠️ Development
 
+### MCP Development Workflow
+
+#### Testing MCP Tools
+```bash
+# Test MCP server locally
+curl -X POST http://localhost:3000/api/mcp/http \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}'
+
+# Test template loading
+curl -X POST http://localhost:3000/api/mcp/http \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "list_templates", "arguments": {}}}'
+```
+
+#### MCP Inspector Usage
+1. Open the application at http://localhost:3000
+2. Navigate to "MCP Inspector" tab
+3. Use the Tools tab to discover and test available MCP tools
+4. Browse Resources to explore available content
+5. Test Prompts with dynamic argument forms
+6. Monitor Message History for debugging MCP communications
+
+#### Adding New MCP Tools
+1. Add tool implementation to `/frontend/src/app/api/mcp/[transport]/route.ts`
+2. Update tool registry in MCP server configuration
+3. Test tool functionality using MCP Inspector
+4. Add documentation for new tool capabilities
+
 ### Project Structure
 ```
-├── api/                 # FastAPI backend
-│   └── app.py          # Main FastAPI application
-├── frontend/           # Next.js frontend
+├── frontend/                    # Next.js frontend with MCP server
 │   ├── src/
-│   │   ├── app/        # Next.js app router
-│   │   └── components/ # React components
+│   │   ├── app/                # Next.js app router
+│   │   │   └── api/mcp/        # MCP server endpoints
+│   │   ├── components/         # React components
+│   │   │   ├── EnhancedChatInterface.tsx
+│   │   │   └── McpInspectorDashboard.tsx
+│   │   ├── hooks/             # React hooks
+│   │   │   └── useMcp.ts      # MCP client hook
+│   │   └── lib/               # Utilities
+│   │       └── mcpClient.ts   # MCP client service
 │   └── package.json
-├── vercel.json         # Deployment configuration
-└── requirements.txt    # Python dependencies
+├── prompts/                    # MCP prompt templates
+│   └── templates/             # .prompty files organized by category
+├── api/                       # Legacy FastAPI backend (deprecated)
+│   └── app.py                # Main FastAPI application
+├── vercel.json               # Deployment configuration
+└── pyproject.toml           # Python dependencies (legacy)
 ```
 
 ### Key Components
-- `EnhancedChatInterface.tsx`: Main application interface with multi-tab functionality
-- `app.py`: FastAPI backend with streaming chat endpoint
+- `EnhancedChatInterface.tsx`: Main application interface with 6-tab functionality
+- `McpInspectorDashboard.tsx`: Standard MCP Inspector with Tools, Resources, Prompts debugging
+- `useMcp.ts`: React hook for MCP client operations and state management
+- `/api/mcp/[transport]/route.ts`: MCP server endpoint with multi-transport support
+- `mcpClient.ts`: MCP client service with protocol abstraction
 - `ACTIVITY_1_TESTS`: Standardized test cases with aspect identification
+- `app.py`: Legacy FastAPI backend (deprecated, backwards compatibility only)
 
 ### Contributing
 

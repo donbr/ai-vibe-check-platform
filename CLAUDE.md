@@ -40,8 +40,9 @@ The platform has been fully migrated to Model Context Protocol (MCP) using Verce
 - **MCP Tools**: `list_templates`, `get_template`, `process_template`, `evaluate_template`, `quick_evaluate`, `run_test_case`
 
 ### Frontend Architecture
-- **Main Entry**: `EnhancedChatInterface.tsx` - 6-tab interface (Chat, Templates, Advanced Prompts, Testing, Analysis, MCP Dashboard)
-- **MCP Integration**: `useMcp` hook manages all MCP client operations
+- **Main Entry**: `EnhancedChatInterface.tsx` - 6-tab interface (Chat, Templates, Advanced Prompts, Testing, Analysis, MCP Inspector)
+- **MCP Inspector**: `McpInspectorDashboard.tsx` - Standards-compliant MCP Inspector with Tools, Resources, Prompts, Server Info, and Message History tabs
+- **MCP Integration**: `useMcp` hook manages all MCP client operations with message history tracking
 - **Template System**: `.prompty` files in `/prompts/templates/` auto-registered as MCP prompts
 
 ### Request Flow
@@ -57,6 +58,28 @@ Five standardized evaluation questions in `EnhancedChatInterface.tsx`:
 3. Creative Writing - 100-150 word story
 4. Mathematical Reasoning - Problem solving
 5. Tone Adjustment - Professional rewriting
+
+## MCP Inspector Usage
+
+### Standard MCP Operations
+The MCP Inspector provides full access to standard MCP protocol operations:
+- **Tools Tab**: Browse and test all available MCP tools with schema validation
+- **Resources Tab**: Explore MCP resources (if server supports resources/list)
+- **Prompts Tab**: Access and execute MCP prompts with dynamic argument forms
+- **Server Info Tab**: View server capabilities and initialization status
+- **Message History Tab**: Real-time debugging with complete request/response tracking
+
+### Testing MCP Tools
+1. Navigate to MCP Inspector tab
+2. Select Tools tab to see available tools
+3. Click on any tool to see its schema and execute with arguments
+4. Monitor results and debug via Message History tab
+
+### Debugging MCP Communications
+- All MCP requests/responses are logged in Message History
+- Failed requests show error details for troubleshooting
+- Request IDs allow tracking specific interactions
+- Real-time updates show server connection status
 
 ## Key Development Rules
 
@@ -97,4 +120,17 @@ Template content with {{var_name}} placeholders
 
 ### MCP Auto-Registration
 Each template automatically becomes an MCP prompt: `{name}-{version}`
+
+### Key Components
+- `McpInspectorDashboard.tsx`: Main MCP Inspector interface (lines 1-500+)
+  - Tools browser with interactive testing capabilities
+  - Resources explorer with content preview (when supported)
+  - Prompts manager with argument form generation
+  - Server information display
+  - Real-time message history for debugging
+- `useMcp.ts`: Enhanced MCP client hook (lines 1-359)
+  - Standard MCP protocol operations (tools, resources, prompts)
+  - Message history tracking and state management
+  - Error handling and connection management
+  - Real-time request/response monitoring
 ```
