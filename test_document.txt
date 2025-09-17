@@ -1,1 +1,0 @@
-This is a test PDF document. It contains information about artificial intelligence and machine learning. The document discusses various topics including neural networks, deep learning, and natural language processing. This content will be used to test the RAG functionality of our application.
