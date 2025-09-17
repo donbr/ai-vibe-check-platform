@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { PromptTemplate, ProcessedPrompt } from '../types/prompt'
-import { promptManager } from '../utils/promptManager'
-import { promptEvaluator } from '../utils/promptEvaluator'
+import { useMcp } from '../hooks/useMcp'
 
 interface PromptPreviewProps {
   template: PromptTemplate | null
@@ -20,11 +19,14 @@ export default function PromptPreview({
   showTestButton = true,
   showEvaluation = true 
 }: PromptPreviewProps) {
+  // MCP Integration
+  const mcp = useMcp()
+  
   const [processedPrompt, setProcessedPrompt] = useState<ProcessedPrompt | null>(null)
   const [error, setError] = useState<string>('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [activeSubTab, setActiveSubTab] = useState<'preview' | 'evaluation'>('preview')
-  const [quickEvaluation, setQuickEvaluation] = useState<any>(null)
+  const [quickEvaluation, setQuickEvaluation] = useState<unknown>(null)
   const [evaluating, setEvaluating] = useState(false)
 
   useEffect(() => {
@@ -39,14 +41,19 @@ export default function PromptPreview({
   }, [template, variables])
 
   const processTemplate = async () => {
-    if (!template) return
+    if (!template || !mcp.connected) return
 
     setIsProcessing(true)
     setError('')
 
     try {
-      const processed = promptManager.processTemplate(template, variables)
-      setProcessedPrompt(processed)
+      const templateId = template.id || `${template.category}-${template.name.toLowerCase().replace(/\s+/g, '-')}-${template.version}`
+      const result = await mcp.processTemplate(templateId, variables)
+      
+      if (result.content && Array.isArray(result.content) && result.content.length > 0) {
+        const processedData = JSON.parse(result.content[0].text)
+        setProcessedPrompt(processedData)
+      }
     } catch (err) {
       setError(`Failed to process template: ${err}`)
       setProcessedPrompt(null)
@@ -56,12 +63,17 @@ export default function PromptPreview({
   }
 
   const runQuickEvaluation = async () => {
-    if (!template) return
+    if (!template || !mcp.connected) return
 
     setEvaluating(true)
     try {
-      const evaluation = promptEvaluator.quickEvaluate(template, variables)
-      setQuickEvaluation(evaluation)
+      const templateId = template.id || `${template.category}-${template.name.toLowerCase().replace(/\s+/g, '-')}-${template.version}`
+      const result = await mcp.quickEvaluate(templateId, variables)
+      
+      if (result.content && Array.isArray(result.content) && result.content.length > 0) {
+        const evaluationData = JSON.parse(result.content[0].text)
+        setQuickEvaluation(evaluationData)
+      }
     } catch (err) {
       console.error('Quick evaluation failed:', err)
       setQuickEvaluation(null)

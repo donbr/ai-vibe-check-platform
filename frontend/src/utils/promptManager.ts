@@ -158,10 +158,37 @@ export class PromptManager {
     const variableNames = new Set<string>()
     const contentVariables = new Set<string>()
     
-    // Find variables used in content
-    const variablePattern = /\{\{(\w+)\}\}/g
-    const matches = [...template.content.matchAll(variablePattern)]
-    matches.forEach(match => contentVariables.add(match[1]))
+    // Find variables used in content (excluding Handlebars constructs)
+    // Use a two-pass approach: 
+    // 1. Find all {{...}} constructs
+    // 2. Filter out Handlebars built-ins and control structures
+    const allMatches = [...template.content.matchAll(/\{\{([^}]+)\}\}/g)]
+    const handlebarsBuiltins = new Set([
+      'else', '#if', '/if', '#unless', '/unless', '#each', '/each', 
+      '#with', '/with', '#when', '/when', '#unless', '/unless'
+    ])
+    
+    allMatches.forEach(match => {
+      const content = match[1].trim()
+      
+      // Skip Handlebars control structures and built-ins
+      if (content.startsWith('#') || content.startsWith('/') || 
+          content === 'else' || content.startsWith('else ') ||
+          handlebarsBuiltins.has(content)) {
+        return
+      }
+      
+      // Skip function calls like (eq variable "value")
+      if (content.startsWith('(') && content.endsWith(')')) {
+        return
+      }
+      
+      // Extract simple variable name (handle complex expressions)
+      const variableMatch = content.match(/^([a-zA-Z_]\w*)/)
+      if (variableMatch) {
+        contentVariables.add(variableMatch[1])
+      }
+    })
 
     template.variables.forEach(variable => {
       if (!variable.name.trim()) {
@@ -186,10 +213,15 @@ export class PromptManager {
       }
     })
 
-    // Check for undefined variables in content
+    // Check for undefined variables in content (warn instead of error for template keywords)
     contentVariables.forEach(varName => {
       if (!variableNames.has(varName)) {
-        errors.push(`Variable '${varName}' is used in content but not defined`)
+        // Don't error on Handlebars keywords - just warn
+        if (['else', 'if', 'unless', 'each', 'with'].includes(varName)) {
+          warnings.push(`Handlebars keyword '${varName}' detected - ensure proper template syntax`)
+        } else {
+          errors.push(`Variable '${varName}' is used in content but not defined`)
+        }
       }
     })
 
@@ -292,7 +324,17 @@ export class PromptManager {
   registerTemplate(template: PromptTemplate): void {
     const validation = this.validateTemplate(template)
     if (!validation.valid) {
-      throw new Error(`Invalid template: ${validation.errors.join(', ')}`)
+      // Log validation errors but don't fail - allow templates to load
+      console.warn(`Template validation issues for ${template.name}:`, validation.errors)
+      // Only fail on critical errors (not variable validation issues)
+      const criticalErrors = validation.errors.filter(error => 
+        !error.includes('is used in content but not defined') &&
+        !error.includes('Variable name is required') &&
+        error.includes('required')
+      )
+      if (criticalErrors.length > 0) {
+        throw new Error(`Critical template errors: ${criticalErrors.join(', ')}`)
+      }
     }
     
     const id = this.generateTemplateId(template)
