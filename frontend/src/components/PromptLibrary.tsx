@@ -47,7 +47,58 @@ export default function PromptLibrary({
       const result = await mcp.listTemplates()
       if (result.content && Array.isArray(result.content) && result.content.length > 0) {
         const templatesData = JSON.parse(result.content[0].text)
-        setTemplates(templatesData.templates || [])
+
+        // Transform MCP template data to match PromptTemplate interface
+        const transformedTemplates = (templatesData.templates || []).map((mcpTemplate: any) => ({
+          // Core MCP fields
+          id: mcpTemplate.id || `${mcpTemplate.category || 'custom'}-${(mcpTemplate.name || 'untitled').toLowerCase().replace(/\s+/g, '-')}-${mcpTemplate.version || '1.0.0'}`,
+          name: mcpTemplate.name || 'Untitled Template',
+          description: mcpTemplate.description || 'No description available',
+          version: mcpTemplate.version || '1.0.0',
+          category: mcpTemplate.category || 'custom',
+          variables: mcpTemplate.variables || [],
+
+          // Add missing required fields with defaults
+          tags: mcpTemplate.tags || [],
+          created: mcpTemplate.created ? new Date(mcpTemplate.created) : new Date(),
+          updated: mcpTemplate.updated ? new Date(mcpTemplate.updated) : new Date(),
+          authors: mcpTemplate.authors || ['System'],
+
+          // Model configuration defaults
+          model: mcpTemplate.model || {
+            preferred: 'gpt-4o-mini',
+            temperature: 0.7,
+            max_tokens: 1000
+          },
+
+          // Content and sample defaults
+          content: mcpTemplate.content || 'Template content not available',
+          sample: mcpTemplate.sample || {},
+          test_cases: mcpTemplate.test_cases || [],
+
+          // Metrics defaults
+          metrics: mcpTemplate.metrics || {
+            usage_count: 0,
+            avg_response_time: 0,
+            success_rate: 1.0,
+            last_used: undefined,
+            avg_word_count: 0,
+            user_ratings: []
+          },
+
+          // Security defaults
+          security: mcpTemplate.security || {
+            injection_protected: true,
+            sanitize_inputs: true,
+            max_input_length: 10000
+          },
+
+          // File metadata
+          file_path: mcpTemplate.file_path || undefined,
+          hash: mcpTemplate.hash || undefined
+        }))
+
+        setTemplates(transformedTemplates)
       }
     } catch (err) {
       setError(`Failed to load templates: ${err}`)
@@ -192,10 +243,10 @@ export default function PromptLibrary({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredAndSortedTemplates.map(template => (
             <div
-              key={`${template.name}-${template.version}`}
+              key={template.id}
               className={`border rounded-lg p-6 hover:shadow-lg transition-shadow cursor-pointer ${
-                selectedTemplateId === `${template.name}-${template.version}` 
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                selectedTemplateId === template.id
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                   : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
               } bg-white dark:bg-gray-800`}
               onClick={() => onSelectTemplate?.(template)}

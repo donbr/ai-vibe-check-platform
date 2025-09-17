@@ -47,7 +47,7 @@ export default function PromptPreview({
     setError('')
 
     try {
-      const templateId = `${template.name}-${template.version}`
+      const templateId = template.id || `${template.category}-${template.name.toLowerCase().replace(/\s+/g, '-')}-${template.version}`
       const result = await mcp.processTemplate(templateId, variables)
       
       if (result.content && Array.isArray(result.content) && result.content.length > 0) {
@@ -67,7 +67,7 @@ export default function PromptPreview({
 
     setEvaluating(true)
     try {
-      const templateId = `${template.name}-${template.version}`
+      const templateId = template.id || `${template.category}-${template.name.toLowerCase().replace(/\s+/g, '-')}-${template.version}`
       const result = await mcp.quickEvaluate(templateId, variables)
       
       if (result.content && Array.isArray(result.content) && result.content.length > 0) {

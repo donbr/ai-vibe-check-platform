@@ -40,6 +40,9 @@ export interface SecuritySettings {
 }
 
 export interface PromptTemplate {
+  // Unique identifier
+  id?: string
+
   // Metadata
   name: string
   description: string

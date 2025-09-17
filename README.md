@@ -89,8 +89,10 @@ The AI Vibe Check Platform provides a sophisticated testing environment for eval
    # Install Python dependencies
    uv sync
 
-   # Start FastAPI server
-   python api/app.py
+   # Start FastAPI server (use one of these commands)
+   cd api && uv run python app.py    # Recommended: uses uv
+   # OR
+   python3 api/app.py                # Alternative: direct python3
    ```
    Backend runs on http://localhost:8000
 
@@ -182,8 +184,11 @@ Health check endpoint.
 
 3. **Environment Configuration**
    - The application uses client-side API key input
-   - No server-side environment variables required
-   - Vercel automatically handles the full-stack deployment
+   - For PDF RAG functionality in production, set the `BACKEND_URL` environment variable to point to your Python backend:
+     ```
+     BACKEND_URL=https://your-python-backend.herokuapp.com
+     ```
+   - If `BACKEND_URL` is not set, PDF functionality will only work in local development
 
 ### Architecture Benefits
 - **Serverless Functions**: FastAPI backend runs as Vercel functions

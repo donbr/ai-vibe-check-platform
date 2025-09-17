@@ -6,7 +6,7 @@ import { useMcp } from '../hooks/useMcp'
 import PromptLibrary from './PromptLibrary'
 import PromptVariableEditor from './PromptVariableEditor'
 import PromptPreview from './PromptPreview'
-import McpEvaluationDashboard from './McpEvaluationDashboard'
+import McpInspectorDashboard from './McpInspectorDashboard'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -487,9 +487,9 @@ export default function EnhancedChatInterface() {
         <TabButton label="PDF RAG" isActive={activeTab === 'pdf-rag'} onClick={() => setActiveTab('pdf-rag')} />
         <TabButton label="Activity #1 Testing" isActive={activeTab === 'testing'} onClick={() => setActiveTab('testing')} />
         <TabButton label="Analysis" isActive={activeTab === 'analysis'} onClick={() => setActiveTab('analysis')} />
-        <TabButton 
-          label="MCP Evaluation" 
-          isActive={activeTab === 'mcp-evaluation'} 
+        <TabButton
+          label="MCP Inspector"
+          isActive={activeTab === 'mcp-evaluation'}
           onClick={() => setActiveTab('mcp-evaluation')} 
         />
       </div>
@@ -1077,13 +1077,7 @@ export default function EnhancedChatInterface() {
         )}
 
         {activeTab === 'mcp-evaluation' && (
-          <McpEvaluationDashboard 
-            onTemplateSelect={(template) => {
-              setSelectedAdvancedTemplate(template)
-              setActiveTab('advanced-prompts')
-              setAdvancedPromptSubTab('preview')
-            }}
-          />
+          <McpInspectorDashboard />
         )}
       </div>
     </div>

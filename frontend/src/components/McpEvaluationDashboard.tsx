@@ -160,7 +160,7 @@ export default function McpEvaluationDashboard({ onTemplateSelect }: McpEvaluati
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {templates.map((template) => (
                 <button
-                  key={`${template.name}-${template.version}`}
+                  key={template.id || `${template.category}-${template.name.toLowerCase().replace(/\s+/g, '-')}-${template.version}`}
                   onClick={() => handleTemplateSelect(template)}
                   className={`w-full text-left p-3 rounded border transition-colors ${
                     selectedTemplate?.name === template.name
