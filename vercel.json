@@ -1,21 +1,45 @@
 {
-    "version": 2,
-    "public": true,
-    "builds": [
-      { "src": "frontend/package.json", "use": "@vercel/next" },
-      { 
-        "src": "api/app.py",
-        "use": "@vercel/python"
-      }
-    ],
-    "routes": [
-      { 
-        "src": "/api/(.*)", 
-        "dest": "api/app.py"
-      },
-      { 
-        "src": "/(.*)", 
-        "dest": "frontend/$1"
-      }
-    ]
-  } 
+  "version": 2,
+  "public": true,
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/.next",
+  "installCommand": "cd frontend && npm install",
+  "framework": "nextjs",
+  "functions": {
+    "frontend/src/app/api/mcp/[transport]/route.ts": {
+      "maxDuration": 60
+    }
+  },
+  "env": {
+    "NEXT_PUBLIC_MCP_ENABLED": "true"
+  },
+  "headers": [
+    {
+      "source": "/api/mcp/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/chat",
+      "destination": "/api/legacy-chat"
+    }
+  ]
+} 

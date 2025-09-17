@@ -2,11 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { PromptTemplate, ProcessedPrompt } from '../types/prompt'
-import { templateLoader } from '../utils/templateLoader'
-import { promptManager } from '../utils/promptManager'
+import { useMcp } from '../hooks/useMcp'
 import PromptLibrary from './PromptLibrary'
 import PromptVariableEditor from './PromptVariableEditor'
 import PromptPreview from './PromptPreview'
+import McpEvaluationDashboard from './McpEvaluationDashboard'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -144,7 +144,10 @@ const MODELS = [
 ]
 
 export default function EnhancedChatInterface() {
-  const [activeTab, setActiveTab] = useState<'chat' | 'templates' | 'advanced-prompts' | 'testing' | 'analysis'>('chat')
+  // MCP Integration
+  const mcp = useMcp()
+  
+  const [activeTab, setActiveTab] = useState<'chat' | 'templates' | 'advanced-prompts' | 'testing' | 'analysis' | 'mcp-evaluation' | 'pdf-rag'>('chat')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [apiKey, setApiKey] = useState('')
@@ -159,9 +162,14 @@ export default function EnhancedChatInterface() {
   
   // New prompt management state
   const [selectedAdvancedTemplate, setSelectedAdvancedTemplate] = useState<PromptTemplate | null>(null)
-  const [templateVariables, setTemplateVariables] = useState<Record<string, any>>({})
+  const [templateVariables, setTemplateVariables] = useState<Record<string, unknown>>({})
   const [templateLibraryLoaded, setTemplateLibraryLoaded] = useState(false)
   const [advancedPromptSubTab, setAdvancedPromptSubTab] = useState<'library' | 'variables' | 'preview'>('library')
+  
+  // PDF RAG state
+  const [pdfFile, setPdfFile] = useState<File | null>(null)
+  const [pdfStatus, setPdfStatus] = useState<{status: string, filename?: string, vector_count?: number} | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -173,18 +181,94 @@ export default function EnhancedChatInterface() {
     scrollToBottom()
   }, [messages])
 
-  // Load templates on component mount
+  // Template loading status from MCP
   useEffect(() => {
-    const loadTemplates = async () => {
-      try {
-        await templateLoader.loadTemplates()
-        setTemplateLibraryLoaded(true)
-      } catch (error) {
-        console.error('Failed to load template library:', error)
-      }
+    if (mcp.connected && !mcp.loading) {
+      setTemplateLibraryLoaded(true)
     }
-    loadTemplates()
+  }, [mcp.connected, mcp.loading])
+
+  // Load PDF status on component mount
+  useEffect(() => {
+    loadPdfStatus()
   }, [])
+
+  const loadPdfStatus = async () => {
+    try {
+      const response = await fetch('/api/pdf-status')
+      if (response.ok) {
+        const status = await response.json()
+        setPdfStatus(status)
+      }
+    } catch (error) {
+      console.error('Error loading PDF status:', error)
+    }
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file && file.type === 'application/pdf') {
+      setPdfFile(file)
+    } else {
+      alert('Please select a PDF file')
+    }
+  }
+
+  const uploadPdf = async () => {
+    if (!pdfFile || !apiKey) {
+      alert('Please select a PDF file and enter your API key')
+      return
+    }
+
+    setIsUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', pdfFile)
+      formData.append('api_key', apiKey)
+
+      const response = await fetch('/api/upload-pdf', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        setPdfStatus({
+          status: 'pdf_loaded',
+          filename: result.filename,
+          vector_count: result.chunks_created
+        })
+        alert(`PDF uploaded successfully! Created ${result.chunks_created} chunks.`)
+      } else {
+        const error = await response.json()
+        alert(`Error uploading PDF: ${error.detail}`)
+      }
+    } catch (error) {
+      console.error('Error uploading PDF:', error)
+      alert('Error uploading PDF')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const clearPdf = async () => {
+    try {
+      const response = await fetch('/api/clear-pdf', {
+        method: 'POST',
+      })
+
+      if (response.ok) {
+        setPdfStatus({ status: 'no_pdf' })
+        setPdfFile(null)
+        alert('PDF cleared successfully')
+      } else {
+        alert('Error clearing PDF')
+      }
+    } catch (error) {
+      console.error('Error clearing PDF:', error)
+      alert('Error clearing PDF')
+    }
+  }
 
   const sendMessage = async (customMessage?: string, customSystemPrompt?: string, testCaseId?: string) => {
     let messageToSend = customMessage || input.trim()
@@ -197,23 +281,29 @@ export default function EnhancedChatInterface() {
 
     // Use advanced template if selected, otherwise fall back to legacy system
     let effectiveSystemPrompt = customSystemPrompt || systemPrompt
-    if (selectedAdvancedTemplate && !customSystemPrompt) {
+    if (selectedAdvancedTemplate && !customSystemPrompt && mcp.connected) {
       try {
-        const processedPrompt = promptManager.processTemplate(selectedAdvancedTemplate, templateVariables)
-        if (processedPrompt.missing_variables.length === 0 && processedPrompt.security_violations.length === 0) {
-          effectiveSystemPrompt = processedPrompt.content
-          // Update model settings if specified in template
-          if (processedPrompt.model_config.preferred && processedPrompt.model_config.preferred !== selectedModel) {
-            setSelectedModel(processedPrompt.model_config.preferred)
+        const templateId = `${selectedAdvancedTemplate.name}-${selectedAdvancedTemplate.version}`
+        const processResult = await mcp.processTemplate(templateId, templateVariables)
+        
+        if (processResult.content && Array.isArray(processResult.content) && processResult.content.length > 0) {
+          const processedData = JSON.parse(processResult.content[0].text)
+          
+          if (processedData.missing_variables?.length === 0 && processedData.security_violations?.length === 0) {
+            effectiveSystemPrompt = processedData.content
+            // Update model settings if specified in template
+            if (processedData.model_config?.preferred && processedData.model_config.preferred !== selectedModel) {
+              setSelectedModel(processedData.model_config.preferred)
+            }
+          } else {
+            console.warn('Advanced template has issues, falling back to basic prompt:', {
+              missing: processedData.missing_variables,
+              violations: processedData.security_violations
+            })
           }
-        } else {
-          console.warn('Advanced template has issues, falling back to basic prompt:', {
-            missing: processedPrompt.missing_variables,
-            violations: processedPrompt.security_violations
-          })
         }
       } catch (error) {
-        console.error('Error processing advanced template:', error)
+        console.error('Error processing advanced template via MCP:', error)
       }
     }
     
@@ -374,8 +464,14 @@ export default function EnhancedChatInterface() {
         <TabButton label="Chat" isActive={activeTab === 'chat'} onClick={() => setActiveTab('chat')} />
         <TabButton label="Templates" isActive={activeTab === 'templates'} onClick={() => setActiveTab('templates')} />
         <TabButton label="Advanced Prompts" isActive={activeTab === 'advanced-prompts'} onClick={() => setActiveTab('advanced-prompts')} />
+        <TabButton label="PDF RAG" isActive={activeTab === 'pdf-rag'} onClick={() => setActiveTab('pdf-rag')} />
         <TabButton label="Activity #1 Testing" isActive={activeTab === 'testing'} onClick={() => setActiveTab('testing')} />
         <TabButton label="Analysis" isActive={activeTab === 'analysis'} onClick={() => setActiveTab('analysis')} />
+        <TabButton 
+          label="MCP Evaluation" 
+          isActive={activeTab === 'mcp-evaluation'} 
+          onClick={() => setActiveTab('mcp-evaluation')} 
+        />
       </div>
 
       <div className="p-6">
@@ -419,6 +515,25 @@ export default function EnhancedChatInterface() {
         {/* Tab Content */}
         {activeTab === 'chat' && (
           <div className="space-y-4">
+            {/* PDF RAG Status Indicator */}
+            {pdfStatus?.status === 'pdf_loaded' && (
+              <div className="bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg p-3 mb-4">
+                <div className="flex items-center">
+                  <svg className="h-5 w-5 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <div>
+                    <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                      PDF RAG Active: {pdfStatus.filename}
+                    </p>
+                    <p className="text-xs text-green-600 dark:text-green-400">
+                      AI will use this PDF as context for answering questions
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* System Prompt */}
             <div>
               <label htmlFor="system-prompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -850,6 +965,105 @@ export default function EnhancedChatInterface() {
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === 'pdf-rag' && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">PDF RAG System</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                Upload a PDF document to enable Retrieval-Augmented Generation (RAG). 
+                The AI will only answer questions using information from your uploaded PDF.
+              </p>
+            </div>
+
+            {/* Current PDF Status */}
+            <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+              <h4 className="font-medium text-gray-800 dark:text-gray-200 mb-2">Current PDF Status</h4>
+              {pdfStatus?.status === 'pdf_loaded' ? (
+                <div className="text-sm text-green-600 dark:text-green-400">
+                  <p>✓ PDF loaded: <strong>{pdfStatus.filename}</strong></p>
+                  <p>✓ Vector chunks: {pdfStatus.vector_count}</p>
+                  <p className="text-gray-600 dark:text-gray-400 mt-1">
+                    The AI will now use this PDF as context for answering questions.
+                  </p>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  <p>No PDF uploaded yet. Upload a PDF to enable RAG functionality.</p>
+                </div>
+              )}
+            </div>
+
+            {/* PDF Upload Section */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-800 dark:text-gray-200">Upload PDF</h4>
+              
+              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="pdf-upload"
+                />
+                <label
+                  htmlFor="pdf-upload"
+                  className="cursor-pointer block"
+                >
+                  <div className="text-gray-400 mb-2">
+                    <svg className="mx-auto h-12 w-12" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                      <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {pdfFile ? `Selected: ${pdfFile.name}` : 'Click to select a PDF file'}
+                  </p>
+                </label>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={uploadPdf}
+                  disabled={!pdfFile || !apiKey || isUploading}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isUploading ? 'Uploading...' : 'Upload PDF'}
+                </button>
+                
+                {pdfStatus?.status === 'pdf_loaded' && (
+                  <button
+                    onClick={clearPdf}
+                    className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                  >
+                    Clear PDF
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Instructions */}
+            <div className="bg-blue-50 dark:bg-blue-900 rounded-lg p-4">
+              <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-2">How to use PDF RAG</h4>
+              <ol className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                <li>1. Upload a PDF file using the uploader above</li>
+                <li>2. Wait for the PDF to be processed and indexed</li>
+                <li>3. Go to the Chat tab and ask questions about the PDF content</li>
+                <li>4. The AI will only use information from your PDF to answer questions</li>
+                <li>5. If the answer isn't in the PDF, the AI will clearly state this</li>
+              </ol>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'mcp-evaluation' && (
+          <McpEvaluationDashboard 
+            onTemplateSelect={(template) => {
+              setSelectedAdvancedTemplate(template)
+              setActiveTab('advanced-prompts')
+              setAdvancedPromptSubTab('preview')
+            }}
+          />
         )}
       </div>
     </div>

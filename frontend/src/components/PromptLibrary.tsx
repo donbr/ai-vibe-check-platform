@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { PromptTemplate } from '../types/prompt'
-import { promptManager } from '../utils/promptManager'
+import { useMcp } from '../hooks/useMcp'
 
 interface PromptLibraryProps {
   onSelectTemplate?: (template: PromptTemplate) => void
@@ -19,6 +19,9 @@ export default function PromptLibrary({
   selectedTemplateId,
   showActions = true
 }: PromptLibraryProps) {
+  // MCP Integration
+  const mcp = useMcp()
+  
   const [templates, setTemplates] = useState<PromptTemplate[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
@@ -30,15 +33,22 @@ export default function PromptLibrary({
 
   useEffect(() => {
     loadTemplates()
-  }, [])
+  }, [mcp.connected])
 
   const loadTemplates = async () => {
+    if (!mcp.connected) {
+      setLoading(true)
+      return
+    }
+
     setLoading(true)
     setError('')
     try {
-      // In a real app, this would load from backend/filesystem
-      const allTemplates = promptManager.getAllTemplates()
-      setTemplates(allTemplates)
+      const result = await mcp.listTemplates()
+      if (result.content && Array.isArray(result.content) && result.content.length > 0) {
+        const templatesData = JSON.parse(result.content[0].text)
+        setTemplates(templatesData.templates || [])
+      }
     } catch (err) {
       setError(`Failed to load templates: ${err}`)
     } finally {
