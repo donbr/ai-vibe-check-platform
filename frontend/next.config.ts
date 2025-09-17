@@ -38,6 +38,19 @@ const nextConfig: NextConfig = {
       {
         source: '/api/chat',
         destination: '/api/legacy-chat'
+      },
+      // Proxy PDF RAG endpoints to FastAPI backend
+      {
+        source: '/api/upload-pdf',
+        destination: 'http://localhost:8000/api/upload-pdf'
+      },
+      {
+        source: '/api/pdf-status',
+        destination: 'http://localhost:8000/api/pdf-status'
+      },
+      {
+        source: '/api/clear-pdf',
+        destination: 'http://localhost:8000/api/clear-pdf'
       }
     ];
   },

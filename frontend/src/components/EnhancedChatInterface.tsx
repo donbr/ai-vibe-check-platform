@@ -367,7 +367,27 @@ export default function EnhancedChatInterface() {
         if (done) break
 
         const chunk = decoder.decode(value)
-        assistantMessage += chunk
+        
+        // Parse Server-Sent Events format
+        const lines = chunk.split('\n')
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const jsonStr = line.slice(6) // Remove 'data: ' prefix
+              if (jsonStr.trim() === '[DONE]') continue
+              
+              const data = JSON.parse(jsonStr)
+              if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
+                assistantMessage += data.choices[0].delta.content
+              }
+            } catch (e) {
+              // If parsing fails, treat as plain text (fallback)
+              if (line.trim() && !line.startsWith('data: ')) {
+                assistantMessage += line
+              }
+            }
+          }
+        }
 
         setMessages(prev => {
           const newMessages = [...prev]
